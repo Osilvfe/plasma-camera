@@ -87,7 +87,16 @@ void Worker::unsetCamera()
 void Worker::capture()
 {
     m_stillCaptureFrames.clear();
+    m_singleFlashPending = m_settings.canSetFlashMode() && m_settings.getFlashMode() == libcamera::controls::draft::FlashModeSingle;
+    m_waitingForSingleFlash = m_singleFlashPending;
     setMode(CaptureMode::StillImage);
+}
+
+void Worker::triggerAutofocus()
+{
+    if (m_settings.canAutoFocus()) {
+        m_autofocusPending = true;
+    }
 }
 
 void Worker::setSettings(const Settings& settings)
@@ -168,8 +177,38 @@ void Worker::requestNextFrame()
     // Load our settings onto the camera request's controls
     m_settings.set(request->controls());
 
+    const bool queueAutofocus = m_autofocusPending;
+    const bool queueSingleFlash = m_singleFlashPending;
+    int appliedFlashMode = m_appliedFlashMode;
+
+    if (queueAutofocus) {
+        request->controls().set(libcamera::controls::AfMode, libcamera::controls::AfModeAuto);
+        request->controls().set(libcamera::controls::AfTrigger, libcamera::controls::AfTriggerStart);
+    }
+
+    if (m_settings.canSetFlashMode()) {
+        const int selectedMode = m_settings.getFlashMode();
+        const int persistentMode = selectedMode == libcamera::controls::draft::FlashModeSingle ? libcamera::controls::draft::FlashModeOff : selectedMode;
+        if (persistentMode != m_appliedFlashMode) {
+            request->controls().set(libcamera::controls::draft::FlashMode, persistentMode);
+            appliedFlashMode = persistentMode;
+        }
+    }
+
+    if (queueSingleFlash) {
+        request->controls().set(libcamera::controls::draft::FlashMode, libcamera::controls::draft::FlashModeSingle);
+    }
+
     // Queue request in camera for frame
-    m_camera->queueRequest(request);
+    if (const int ret = m_camera->queueRequest(request); ret < 0) {
+        const QMutexLocker lock(&m_freeMutex);
+        m_freeQueue.enqueue(request);
+        setError(ret);
+    } else {
+        m_autofocusPending = false;
+        m_singleFlashPending = false;
+        m_appliedFlashMode = appliedFlashMode;
+    }
 }
 
 void Worker::requestComplete(libcamera::Request *request)
@@ -193,11 +232,18 @@ void Worker::requestComplete(libcamera::Request *request)
 void Worker::processRequestDataAndEmit()
 {
     // Populates m_image
-    processRequestData();
+    const bool singleFlashFrame = processRequestData();
 
     // Implement photo capture
     if (m_mode == CaptureMode::StillImage) {
         const QMutexLocker lock(&m_stillCaptureFramesMutex);
+
+        if (m_waitingForSingleFlash && !singleFlashFrame) {
+            Q_EMIT viewFinderFrame(std::move(m_image));
+            return;
+        }
+
+        m_waitingForSingleFlash = false;
 
         if (m_stillCaptureFrames.length() >= 5) {
             return;
@@ -217,14 +263,14 @@ void Worker::processRequestDataAndEmit()
     Q_EMIT viewFinderFrame(std::move(m_image));
 }
 
-void Worker::processRequestData()
+bool Worker::processRequestData()
 {
     libcamera::Request *request;
     {
         // Obtain a finished request from the queue
         const QMutexLocker lock(&m_doneMutex);
         if (m_doneQueue.isEmpty()) {
-            return;
+            return false;
         }
         request = m_doneQueue.dequeue();
     }
@@ -233,11 +279,13 @@ void Worker::processRequestData()
         // Return request to the free queue for new requests
         const QMutexLocker lock(&m_freeMutex);
         m_freeQueue.enqueue(request);
-        return;
+        return false;
     }
 
     libcamera::FrameBuffer *buffer = request->buffers().at(m_stream);
     Image *image = m_mappedBuffers[buffer].get();
+    const bool singleFlashFrame = request->metadata().get(libcamera::controls::draft::FlashMode).value_or(libcamera::controls::draft::FlashModeOff)
+        == libcamera::controls::draft::FlashModeSingle;
 
     // Load frame into m_image
     size_t size = buffer->metadata().planes()[0].bytesused;
@@ -253,6 +301,8 @@ void Worker::processRequestData()
         const QMutexLocker lock(&m_freeMutex);
         m_freeQueue.enqueue(request);
     }
+
+    return singleFlashFrame;
 }
 
 void Worker::startViewFinder()
@@ -299,6 +349,10 @@ void Worker::stopViewFinder()
 {
     qDebug() << "stop view finder";
     m_framePollTimer->stop();
+    m_autofocusPending = false;
+    m_singleFlashPending = false;
+    m_waitingForSingleFlash = false;
+    m_appliedFlashMode = -1;
 
     if (m_camera) {
         // All pending requests are cancelled

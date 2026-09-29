@@ -65,14 +65,49 @@ class PlasmaCamera : public QObject
     Q_PROPERTY(float exposureValue READ exposureValue WRITE setExposureValue RESET resetExposureValue NOTIFY settingsChanged)
 
     // White balance
-    // Q_PROPERTY(int wbMode READ wbMode WRITE setWbMode RESET resetAwb NOTIFY settingsChanged)
+    Q_PROPERTY(bool whiteBalanceAvailable READ whiteBalanceAvailable NOTIFY settingsChanged)
+    Q_PROPERTY(int whiteBalanceMode READ whiteBalanceMode WRITE setWhiteBalanceMode RESET resetAwb NOTIFY settingsChanged)
     // Q_PROPERTY(int wbTemp READ wbTemp WRITE setWbTemp RESET resetAwb NOTIFY settingsChanged)
 
-    // Contrast and saturation
+    // Image processing
     // Q_PROPERTY(int contrast READ contrast WRITE setContrast RESET resetContrast NOTIFY settingsChanged)
     // Q_PROPERTY(int saturation READ saturation WRITE setSaturation RESET resetSaturation NOTIFY settingsChanged)
+    Q_PROPERTY(bool noiseReductionAvailable READ noiseReductionAvailable NOTIFY settingsChanged)
+    Q_PROPERTY(int noiseReductionMode READ noiseReductionMode WRITE setNoiseReductionMode NOTIFY settingsChanged)
+    Q_PROPERTY(bool sharpnessAvailable READ sharpnessAvailable NOTIFY settingsChanged)
+    Q_PROPERTY(float sharpness READ sharpness WRITE setSharpness NOTIFY settingsChanged)
+    Q_PROPERTY(float minimumSharpness READ minimumSharpness NOTIFY settingsChanged)
+    Q_PROPERTY(float maximumSharpness READ maximumSharpness NOTIFY settingsChanged)
+
+    // Autofocus and flash
+    Q_PROPERTY(bool autofocusAvailable READ autofocusAvailable NOTIFY settingsChanged)
+    Q_PROPERTY(bool flashAvailable READ flashAvailable NOTIFY settingsChanged)
+    Q_PROPERTY(int flashMode READ flashMode WRITE setFlashMode NOTIFY settingsChanged)
 
 public:
+    enum WhiteBalanceMode {
+        WhiteBalanceAuto = 0,
+        WhiteBalanceIncandescent = 1,
+        WhiteBalanceFluorescent = 3,
+        WhiteBalanceDaylight = 5,
+        WhiteBalanceCloudy = 6,
+    };
+    Q_ENUM(WhiteBalanceMode)
+
+    enum NoiseReductionMode {
+        NoiseReductionOff = 0,
+        NoiseReductionFast = 1,
+        NoiseReductionHighQuality = 2,
+    };
+    Q_ENUM(NoiseReductionMode)
+
+    enum FlashMode {
+        FlashOff = 0,
+        FlashSingle = 1,
+        FlashTorch = 2,
+    };
+    Q_ENUM(FlashMode)
+
     explicit PlasmaCamera(QObject *parent = nullptr);
     ~PlasmaCamera() override;
 
@@ -106,6 +141,8 @@ public:
      * If the camera is not yet running, it will wait until the state changes before stopping.
      */
     Q_INVOKABLE void stopCamera();
+
+    Q_INVOKABLE void triggerAutofocus();
 
     /*!
      * Returns all camera devices as a list of ids.
@@ -152,12 +189,23 @@ public:
     float exposureValue() const;
 
     // White balance
-    // int wbMode() const;
+    bool whiteBalanceAvailable() const;
+    int whiteBalanceMode() const;
     int wbTemp() const;
 
     // Contrast and saturation
     float contrast() const;
     float saturation() const;
+    bool noiseReductionAvailable() const;
+    int noiseReductionMode() const;
+    bool sharpnessAvailable() const;
+    float sharpness() const;
+    float minimumSharpness() const;
+    float maximumSharpness() const;
+
+    bool autofocusAvailable() const;
+    bool flashAvailable() const;
+    int flashMode() const;
 
     // Camera settings
     Settings settings() const;
@@ -208,7 +256,7 @@ public Q_SLOTS:
     void resetExposureValue();
 
     // White balance
-    // void setWbMode(int wbMode);
+    void setWhiteBalanceMode(int mode);
     void setWbTemp(int wbTemp);
     void resetAwb();
 
@@ -217,6 +265,9 @@ public Q_SLOTS:
     void setSaturation(float saturation);
     void resetContrast();
     void resetSaturation();
+    void setNoiseReductionMode(int mode);
+    void setSharpness(float sharpness);
+    void setFlashMode(int mode);
 
     void setFps(float fps);
 

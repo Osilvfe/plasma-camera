@@ -68,6 +68,7 @@ public Q_SLOTS:
 
     // Photo capture
     void capture();
+    void triggerAutofocus();
 
     void setSettings(const Settings &settings);
 
@@ -120,7 +121,7 @@ private:
     int createRequests();
 
     void requestComplete(libcamera::Request *request);
-    void processRequestData(); // convert buffers to QImage stored at m_image
+    bool processRequestData(); // convert buffers to QImage stored at m_image
 
     bool m_error = false;
     QString m_errorString;
@@ -161,4 +162,8 @@ private:
     QMutex m_freeMutex;
 
     Settings m_settings;
+    bool m_autofocusPending = false;
+    bool m_singleFlashPending = false;
+    bool m_waitingForSingleFlash = false;
+    int m_appliedFlashMode = -1;
 };

@@ -121,9 +121,14 @@ Kirigami.Page {
             audioRecordingEnabled: root.captureSession.audioRecordingEnabled
             audioRecordingEnabledShown: root.captureMode === CameraPage.CaptureMode.Video && !root.captureSession.isRecordingVideo && !root.captureSession.isSavingVideo
             exposureValueEnabled: root.camera.exposureValueAvailable
+            autofocusEnabled: root.camera.autofocusAvailable && !root.camera.busy
+            flashAvailable: root.camera.flashAvailable
+            flashMode: root.camera.flashMode
 
             onExposureValueRequested: (value) => root.camera.exposureValue = value;
             onAudioEnabledChangeRequested: (enabled) => root.captureSession.audioRecordingEnabled = enabled;
+            onAutofocusRequested: root.camera.triggerAutofocus()
+            onFlashModeChangeRequested: (mode) => root.camera.flashMode = mode
         }
 
         // Footer controls

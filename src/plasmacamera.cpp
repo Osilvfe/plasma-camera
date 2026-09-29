@@ -104,6 +104,15 @@ void PlasmaCamera::stopCamera()
     setActive(false);
 }
 
+void PlasmaCamera::triggerAutofocus()
+{
+    if (m_state != State::Running || !m_settings.canAutoFocus()) {
+        return;
+    }
+
+    QMetaObject::invokeMethod(m_cameraWorker, "triggerAutofocus", Qt::QueuedConnection);
+}
+
 bool PlasmaCamera::switchToNextCamera()
 {
     if (m_state != State::Running) {
@@ -217,6 +226,16 @@ int PlasmaCamera::wbTemp() const
     return m_settings.getWbTemp();
 }
 
+bool PlasmaCamera::whiteBalanceAvailable() const
+{
+    return m_settings.canSetWbMode();
+}
+
+int PlasmaCamera::whiteBalanceMode() const
+{
+    return m_settings.getWbMode();
+}
+
 float PlasmaCamera::contrast() const
 {
     return m_settings.getContrast();
@@ -225,6 +244,51 @@ float PlasmaCamera::contrast() const
 float PlasmaCamera::saturation() const
 {
     return m_settings.getSaturation();
+}
+
+bool PlasmaCamera::noiseReductionAvailable() const
+{
+    return m_settings.canSetNoiseReductionMode();
+}
+
+int PlasmaCamera::noiseReductionMode() const
+{
+    return m_settings.getNoiseReductionMode();
+}
+
+bool PlasmaCamera::sharpnessAvailable() const
+{
+    return m_settings.canSetSharpness();
+}
+
+float PlasmaCamera::sharpness() const
+{
+    return m_settings.getSharpness();
+}
+
+float PlasmaCamera::minimumSharpness() const
+{
+    return m_settings.minSharpness();
+}
+
+float PlasmaCamera::maximumSharpness() const
+{
+    return m_settings.maxSharpness();
+}
+
+bool PlasmaCamera::autofocusAvailable() const
+{
+    return m_settings.canAutoFocus();
+}
+
+bool PlasmaCamera::flashAvailable() const
+{
+    return m_settings.canSetFlashMode();
+}
+
+int PlasmaCamera::flashMode() const
+{
+    return m_settings.getFlashMode();
 }
 
 Settings PlasmaCamera::settings() const
@@ -387,6 +451,13 @@ void PlasmaCamera::setWbTemp(const int wbTemp)
     }
 }
 
+void PlasmaCamera::setWhiteBalanceMode(const int mode)
+{
+    if (m_settings.trySetWbMode(mode)) {
+        Q_EMIT settingsChanged(m_settings);
+    }
+}
+
 void PlasmaCamera::resetAwb()
 {
     m_settings.unSetWbTemp();
@@ -417,6 +488,27 @@ void PlasmaCamera::resetSaturation()
 {
     m_settings.unSetSaturation();
     Q_EMIT settingsChanged(m_settings);
+}
+
+void PlasmaCamera::setNoiseReductionMode(const int mode)
+{
+    if (m_settings.trySetNoiseReductionMode(mode)) {
+        Q_EMIT settingsChanged(m_settings);
+    }
+}
+
+void PlasmaCamera::setSharpness(const float sharpness)
+{
+    if (m_settings.trySetSharpness(sharpness)) {
+        Q_EMIT settingsChanged(m_settings);
+    }
+}
+
+void PlasmaCamera::setFlashMode(const int mode)
+{
+    if (m_settings.trySetFlashMode(mode)) {
+        Q_EMIT settingsChanged(m_settings);
+    }
 }
 
 void PlasmaCamera::setFps(const float fps)

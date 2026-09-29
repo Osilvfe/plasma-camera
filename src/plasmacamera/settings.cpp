@@ -10,6 +10,19 @@ Settings::~Settings() {}
 
 void Settings::load(const libcamera::ControlInfoMap &infoMap)
 {
+    m_aeEnableAvailable = false;
+    m_manualExposureValueAvailable = false;
+    m_afWindowAvailable = false;
+    m_autoFocusAvailable = false;
+    m_wbModeAvailable = false;
+    m_wbTempAvailable = false;
+    m_manualExposureTimeAvailable = false;
+    m_manualAnalogueGainAvailable = false;
+    m_manualContrastAvailable = false;
+    m_manualSaturationAvailable = false;
+    m_noiseReductionModeAvailable = false;
+    m_sharpnessAvailable = false;
+    m_flashModeAvailable = false;
     reset();
 
     qDebug() << "Loading settings:";
@@ -40,6 +53,10 @@ void Settings::load(const libcamera::ControlInfoMap &infoMap)
             // TODO: should we check for AF_METERING instead?
             // TODO: how to convert Span<const Rectangle> to QSize?
             m_afWindowAvailable = true;
+            break;
+
+        case libcamera::controls::AF_MODE:
+            m_autoFocusAvailable = true;
             break;
 
         case libcamera::controls::AWB_MODE:
@@ -90,6 +107,25 @@ void Settings::load(const libcamera::ControlInfoMap &infoMap)
             m_saturationMax = controlInfo.max().get<float>();
             break;
 
+        case libcamera::controls::SHARPNESS:
+            m_sharpnessAvailable = true;
+            m_sharpnessDefault = controlInfo.def().get<float>();
+            m_sharpness = m_sharpnessDefault;
+            m_sharpnessMin = controlInfo.min().get<float>();
+            m_sharpnessMax = controlInfo.max().get<float>();
+            break;
+
+        case libcamera::controls::draft::NOISE_REDUCTION_MODE:
+            m_noiseReductionModeAvailable = true;
+            m_noiseReductionModeDefault = controlInfo.def().get<int32_t>();
+            m_noiseReductionMode = m_noiseReductionModeDefault;
+            break;
+
+        case libcamera::controls::draft::FLASH_MODE:
+            m_flashModeAvailable = true;
+            m_flashMode = libcamera::controls::draft::FlashModeOff;
+            break;
+
         case libcamera::controls::HDR_MODE:
             // break;
 
@@ -117,7 +153,34 @@ void Settings::set(libcamera::ControlList &controlMap)
         controlMap.set(libcamera::controls::ExposureTime, m_exposureTime);
     }
 
-    // TODO: implement the rest of the settings
+    if (m_manualAnalogueGainAvailable && m_manualAnalogueGain) {
+        controlMap.set(libcamera::controls::AnalogueGain, m_analogueGain);
+    }
+
+    if (!m_wbAutoUseDefault) {
+        controlMap.set(libcamera::controls::AwbEnable, m_wbAuto);
+        if (m_wbAuto && m_wbModeAvailable) {
+            controlMap.set(libcamera::controls::AwbMode, m_wbMode);
+        } else if (!m_wbAuto && m_wbTempAvailable) {
+            controlMap.set(libcamera::controls::ColourTemperature, m_wbTemp);
+        }
+    }
+
+    if (m_manualContrastAvailable && m_manualContrast) {
+        controlMap.set(libcamera::controls::Contrast, m_contrast);
+    }
+
+    if (m_manualSaturationAvailable && m_manualSaturation) {
+        controlMap.set(libcamera::controls::Saturation, m_saturation);
+    }
+
+    if (m_noiseReductionModeAvailable) {
+        controlMap.set(libcamera::controls::draft::NoiseReductionMode, m_noiseReductionMode);
+    }
+
+    if (m_sharpnessAvailable && m_manualSharpness) {
+        controlMap.set(libcamera::controls::Sharpness, m_sharpness);
+    }
 }
 
 void Settings::reset()
@@ -126,8 +189,13 @@ void Settings::reset()
     unSetExposureValue();
     unSetAfWindow();
     unSetWb();
+    unSetExposureTime();
+    unSetGain();
     unSetContrast();
     unSetSaturation();
+    m_noiseReductionMode = m_noiseReductionModeDefault;
+    m_manualSharpness = false;
+    m_flashMode = libcamera::controls::draft::FlashModeOff;
 }
 
 
@@ -259,6 +327,10 @@ QSize Settings::getAfWindow() const
     return m_afWindowTarget;
 }
 
+bool Settings::canAutoFocus() const
+{
+    return m_autoFocusAvailable;
+}
 
 // White Balance (WB) Settings
 /*
@@ -292,11 +364,9 @@ bool Settings::trySetWbMode(const int wbMode)
         return false;
     }
 
-    if (m_wbMode != wbMode) {
-        m_wbAuto = true;
-        m_wbAutoUseDefault = false;
-        m_wbMode = wbMode;
-    }
+    m_wbAuto = true;
+    m_wbAutoUseDefault = false;
+    m_wbMode = wbMode;
 
     return true;
 }
@@ -326,11 +396,9 @@ bool Settings::trySetWbTemp(const int wbTemp)
         return false;
     }
 
-    if (m_wbTemp != wbTemp) {
-        m_wbAuto = false;
-        m_wbAutoUseDefault = false;
-        m_wbTemp = wbTemp;
-    }
+    m_wbAuto = false;
+    m_wbAutoUseDefault = false;
+    m_wbTemp = wbTemp;
 
     return true;
 }
@@ -551,4 +619,76 @@ float Settings::minSaturation() const
 float Settings::maxSaturation() const
 {
     return m_saturationMax;
+}
+
+bool Settings::canSetNoiseReductionMode() const
+{
+    return m_noiseReductionModeAvailable;
+}
+
+bool Settings::trySetNoiseReductionMode(const int mode)
+{
+    if (!canSetNoiseReductionMode() || mode < libcamera::controls::draft::NoiseReductionModeOff
+        || mode > libcamera::controls::draft::NoiseReductionModeHighQuality) {
+        return false;
+    }
+
+    m_noiseReductionMode = mode;
+    return true;
+}
+
+int Settings::getNoiseReductionMode() const
+{
+    return m_noiseReductionMode;
+}
+
+bool Settings::canSetSharpness() const
+{
+    return m_sharpnessAvailable;
+}
+
+bool Settings::trySetSharpness(const float sharpness)
+{
+    if (!canSetSharpness() || sharpness < m_sharpnessMin || sharpness > m_sharpnessMax) {
+        return false;
+    }
+
+    m_sharpness = sharpness;
+    m_manualSharpness = true;
+    return true;
+}
+
+float Settings::getSharpness() const
+{
+    return m_manualSharpness ? m_sharpness : m_sharpnessDefault;
+}
+
+float Settings::minSharpness() const
+{
+    return m_sharpnessMin;
+}
+
+float Settings::maxSharpness() const
+{
+    return m_sharpnessMax;
+}
+
+bool Settings::canSetFlashMode() const
+{
+    return m_flashModeAvailable;
+}
+
+bool Settings::trySetFlashMode(const int mode)
+{
+    if (!canSetFlashMode() || mode < libcamera::controls::draft::FlashModeOff || mode > libcamera::controls::draft::FlashModeTorch) {
+        return false;
+    }
+
+    m_flashMode = mode;
+    return true;
+}
+
+int Settings::getFlashMode() const
+{
+    return m_flashMode;
 }

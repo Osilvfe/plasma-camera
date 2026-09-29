@@ -16,9 +16,14 @@ Rectangle {
     required property bool audioRecordingEnabled
     required property bool audioRecordingEnabledShown
     required property bool exposureValueEnabled
+    required property bool autofocusEnabled
+    required property bool flashAvailable
+    required property int flashMode
 
     signal audioEnabledChangeRequested(enabled: bool)
     signal exposureValueRequested(value: real)
+    signal autofocusRequested()
+    signal flashModeChangeRequested(mode: int)
 
     height: controlsLayout.implicitHeight
     color: Qt.rgba(0, 0, 0, 0.3)
@@ -64,6 +69,33 @@ Rectangle {
                 display: QQC2.ToolButton.IconOnly
                 visible: root.exposureValueEnabled
                 onClicked: exposureSelectStrip.shown = !exposureSelectStrip.shown
+
+                QQC2.ToolTip.visible: down
+                QQC2.ToolTip.text: text
+            }
+
+            QQC2.ToolButton {
+                id: autofocusButton
+                icon.name: "camera-focus"
+                icon.color: "white"
+                text: i18n("Autofocus")
+                display: QQC2.ToolButton.IconOnly
+                visible: root.autofocusEnabled
+                onClicked: root.autofocusRequested()
+
+                QQC2.ToolTip.visible: down
+                QQC2.ToolTip.text: text
+            }
+
+            QQC2.ToolButton {
+                id: flashButton
+                icon.source: root.flashMode === 0 ? "qrc:/camera_flash_off.png" : "qrc:/camera_flash_fill.png"
+                text: root.flashMode === 0 ? i18n("Flash off")
+                    : root.flashMode === 1 ? i18n("Flash on capture")
+                    : i18n("Torch")
+                display: QQC2.ToolButton.IconOnly
+                visible: root.flashAvailable
+                onClicked: root.flashModeChangeRequested((root.flashMode + 1) % 3)
 
                 QQC2.ToolTip.visible: down
                 QQC2.ToolTip.text: text

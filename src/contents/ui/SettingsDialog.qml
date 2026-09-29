@@ -88,6 +88,36 @@ Kirigami.MenuDialog {
         },
 
         Kirigami.Action {
+            text: i18n("White balance")
+            icon.name: "whitebalance"
+            visible: root.camera.whiteBalanceAvailable
+            onTriggered: {
+                whiteBalanceDialogLoader.active = true;
+                whiteBalanceDialogLoader.item.open();
+            }
+        },
+
+        Kirigami.Action {
+            text: i18n("Noise reduction")
+            icon.name: "image-denoise"
+            visible: root.camera.noiseReductionAvailable
+            onTriggered: {
+                noiseReductionDialogLoader.active = true;
+                noiseReductionDialogLoader.item.open();
+            }
+        },
+
+        Kirigami.Action {
+            text: i18n("Sharpness")
+            icon.name: "image-sharpen"
+            visible: root.camera.sharpnessAvailable
+            onTriggered: {
+                sharpnessDialogLoader.active = true;
+                sharpnessDialogLoader.item.open();
+            }
+        },
+
+        Kirigami.Action {
             text: i18n("About")
             icon.name: "help-about"
             onTriggered: {
@@ -411,6 +441,98 @@ Kirigami.MenuDialog {
                             }
                         }
                     }
+                }
+            }
+        }
+    }
+
+    property Loader whiteBalanceDialogLoader: Loader {
+        id: whiteBalanceDialogLoader
+        active: false
+
+        sourceComponent: Kirigami.Dialog {
+            title: i18n("White balance")
+            preferredWidth: Kirigami.Units.gridUnit * 16
+            onClosed: whiteBalanceDialogLoader.active = false
+
+            ColumnLayout {
+                spacing: 0
+
+                Repeater {
+                    model: [
+                        { name: i18n("Auto"), value: PlasmaCamera.WhiteBalanceAuto },
+                        { name: i18n("Incandescent"), value: PlasmaCamera.WhiteBalanceIncandescent },
+                        { name: i18n("Fluorescent"), value: PlasmaCamera.WhiteBalanceFluorescent },
+                        { name: i18n("Daylight"), value: PlasmaCamera.WhiteBalanceDaylight },
+                        { name: i18n("Cloudy"), value: PlasmaCamera.WhiteBalanceCloudy },
+                    ]
+
+                    delegate: QQC2.RadioDelegate {
+                        required property var modelData
+                        Layout.fillWidth: true
+                        text: modelData.name
+                        checked: modelData.value === root.camera.whiteBalanceMode
+                        onClicked: root.camera.whiteBalanceMode = modelData.value
+                    }
+                }
+            }
+        }
+    }
+
+    property Loader noiseReductionDialogLoader: Loader {
+        id: noiseReductionDialogLoader
+        active: false
+
+        sourceComponent: Kirigami.Dialog {
+            title: i18n("Noise reduction")
+            preferredWidth: Kirigami.Units.gridUnit * 16
+            onClosed: noiseReductionDialogLoader.active = false
+
+            ColumnLayout {
+                spacing: 0
+
+                Repeater {
+                    model: [
+                        { name: i18n("Off"), value: PlasmaCamera.NoiseReductionOff },
+                        { name: i18n("Fast"), value: PlasmaCamera.NoiseReductionFast },
+                        { name: i18n("High quality"), value: PlasmaCamera.NoiseReductionHighQuality },
+                    ]
+
+                    delegate: QQC2.RadioDelegate {
+                        required property var modelData
+                        Layout.fillWidth: true
+                        text: modelData.name
+                        checked: modelData.value === root.camera.noiseReductionMode
+                        onClicked: root.camera.noiseReductionMode = modelData.value
+                    }
+                }
+            }
+        }
+    }
+
+    property Loader sharpnessDialogLoader: Loader {
+        id: sharpnessDialogLoader
+        active: false
+
+        sourceComponent: Kirigami.Dialog {
+            title: i18n("Sharpness")
+            preferredWidth: Kirigami.Units.gridUnit * 16
+            onClosed: sharpnessDialogLoader.active = false
+
+            ColumnLayout {
+                QQC2.Label {
+                    Layout.alignment: Qt.AlignHCenter
+                    text: sharpnessSlider.value.toFixed(2)
+                }
+
+                QQC2.Slider {
+                    id: sharpnessSlider
+                    Layout.fillWidth: true
+                    from: root.camera.minimumSharpness
+                    to: root.camera.maximumSharpness
+                    stepSize: 0.05
+                    value: root.camera.sharpness
+                    onMoved: root.camera.sharpness = value
                 }
             }
         }

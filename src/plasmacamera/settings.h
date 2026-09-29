@@ -62,7 +62,7 @@ public:
     bool trySetAfWindow(QSize window);
     void unSetAfWindow();
     QSize getAfWindow() const;
-
+    bool canAutoFocus() const;
 
     // White Balance (WB) Settings
     /*
@@ -120,6 +120,22 @@ public:
     float getSaturation() const;
     float minSaturation() const;
     float maxSaturation() const;
+
+    // Detail processing
+    bool canSetNoiseReductionMode() const;
+    bool trySetNoiseReductionMode(int mode);
+    int getNoiseReductionMode() const;
+
+    bool canSetSharpness() const;
+    bool trySetSharpness(float sharpness);
+    float getSharpness() const;
+    float minSharpness() const;
+    float maxSharpness() const;
+
+    // Flash
+    bool canSetFlashMode() const;
+    bool trySetFlashMode(int mode);
+    int getFlashMode() const;
 
 private:
     // Auto Exposure (AE) Settings
@@ -179,6 +195,7 @@ private:
     bool m_afWindow = false;
     bool m_afWindowUseDefault = true;
     bool m_afWindowAvailable = false;
+    bool m_autoFocusAvailable = false;
 
     // White Balance (WB) Settings
     /*
@@ -249,6 +266,20 @@ private:
     float m_saturationDefault = 1.0f;
     bool m_manualSaturation = false;
     bool m_manualSaturationAvailable = false;
+
+    int m_noiseReductionMode = 1;
+    int m_noiseReductionModeDefault = 1;
+    bool m_noiseReductionModeAvailable = false;
+
+    float m_sharpness = 1.0f;
+    float m_sharpnessMin = 0.0f;
+    float m_sharpnessMax = 2.0f;
+    float m_sharpnessDefault = 1.0f;
+    bool m_manualSharpness = false;
+    bool m_sharpnessAvailable = false;
+
+    int m_flashMode = 0;
+    bool m_flashModeAvailable = false;
 
     // Zoom Settings
     /*
