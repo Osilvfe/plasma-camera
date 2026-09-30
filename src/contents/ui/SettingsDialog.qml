@@ -277,7 +277,7 @@ Kirigami.MenuDialog {
             title: i18n("Video Recording Codec")
             preferredWidth: Kirigami.Units.gridUnit * 16
 
-            onClosed: videoFpsDialogLoader.active = false
+            onClosed: videoCodecDialogLoader.active = false
 
             ColumnLayout {
                 spacing: 0

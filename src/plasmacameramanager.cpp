@@ -11,6 +11,11 @@
 #include <exiv2/exiv2.hpp>
 #include <memory>
 
+namespace
+{
+constexpr int jpegQuality = 95;
+}
+
 PlasmaCameraManager::PlasmaCameraManager(QObject *parent)
     : QObject(parent)
 {
@@ -571,9 +576,8 @@ void PlasmaCameraManager::processCaptureImage(const QQueue<QImage> &frames)
     transform.rotate(outputOrientationDegrees());
     image = image.transformed(transform);
 
-    // TODO: set format and quality
     qDebug() << "saving image to " << fileName;
-    const bool res = image.save(&file, "JPEG", 50);
+    const bool res = image.save(&file, "JPEG", jpegQuality);
     if (!res) {
         setError(0, ResourceError, QStringLiteral("Could not save to file: %1").arg(fileName));
     }
