@@ -103,6 +103,12 @@ public:
     float minGain() const;
     float maxGain() const;
 
+    // Frame duration
+    bool canSetFrameRate() const;
+    bool trySetFrameRate(float frameRate);
+    bool isSetFrameRate() const;
+    void unSetFrameRate();
+    float getFrameRate() const;
 
     // Color Settings
     bool canSetContrast() const;
@@ -246,6 +252,14 @@ private:
     float m_analogueGainDefault = 1.0f;
     bool m_manualAnalogueGain = false;
     bool m_manualAnalogueGainAvailable = false;
+
+    int64_t m_frameDuration = 0;
+    int64_t m_frameDurationMin = 0;
+    int64_t m_frameDurationMax = 0;
+    float m_frameRate = 0.0f;
+    bool m_manualFrameDuration = false;
+    bool m_frameDurationAvailable = false;
+    bool m_resetFrameDuration = false;
 
     // Color Settings
     /*

@@ -168,6 +168,14 @@ void PlasmaCameraManager::startRecordingVideo()
         return;
     }
 
+    if (m_plasmaCamera) {
+        m_plasmaCamera->setFps(m_videoRecordingFps);
+        const float cameraFps = m_plasmaCamera->fps();
+        if (cameraFps > 0.0f && cameraFps != m_videoRecordingFps) {
+            setVideoRecordingFps(cameraFps);
+        }
+    }
+
     m_droppedFrames = false; // reset
     m_frameRecordingCount = 0; // reset frame count for correct timestamps
 
@@ -189,6 +197,10 @@ void PlasmaCameraManager::stopRecordingVideo()
     setIsSavingVideo(true);
 
     m_videoFrameTimer.stop();
+
+    if (m_plasmaCamera) {
+        m_plasmaCamera->setFps(0.0f);
+    }
 }
 
 int PlasmaCameraManager::captureImage()
@@ -303,6 +315,9 @@ void PlasmaCameraManager::setRecorder(QMediaRecorder *recorder)
             m_videoFrameTimer.start();
         } else {
             m_videoFrameTimer.stop();
+            if (m_plasmaCamera) {
+                m_plasmaCamera->setFps(0.0f);
+            }
         }
 
         // Once the recorder changes to any state, it no longer is saving video
@@ -386,9 +401,8 @@ void PlasmaCameraManager::updateRecorderSettings()
         break;
     }
 
-    // Set the frame rate (let recorder decide)
-    // m_recorder->setVideoFrameRate(m_videoRecordingFps);
-    m_recorder->setVideoFrameRate(0);
+    // Match encoder timing to the libcamera frame-duration request.
+    m_recorder->setVideoFrameRate(m_videoRecordingFps);
 
     // Set frame timer polling rate
     m_videoFrameTimer.setInterval(static_cast<int>(1000.0f / m_videoRecordingFps));

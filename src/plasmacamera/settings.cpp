@@ -4,6 +4,9 @@
 
 #include "settings.h"
 
+#include <algorithm>
+#include <cmath>
+
 Settings::Settings() {}
 
 Settings::~Settings() {}
@@ -18,6 +21,7 @@ void Settings::load(const libcamera::ControlInfoMap &infoMap)
     m_wbTempAvailable = false;
     m_manualExposureTimeAvailable = false;
     m_manualAnalogueGainAvailable = false;
+    m_frameDurationAvailable = false;
     m_manualContrastAvailable = false;
     m_manualSaturationAvailable = false;
     m_noiseReductionModeAvailable = false;
@@ -91,6 +95,12 @@ void Settings::load(const libcamera::ControlInfoMap &infoMap)
             m_analogueGainMax = controlInfo.max().get<float>();
             break;
 
+        case libcamera::controls::FRAME_DURATION_LIMITS:
+            m_frameDurationAvailable = true;
+            m_frameDurationMin = controlInfo.min().get<int64_t>();
+            m_frameDurationMax = controlInfo.max().get<int64_t>();
+            break;
+
         case libcamera::controls::CONTRAST:
             m_manualContrastAvailable = true;
             m_contrastDefault = controlInfo.def().get<float>();
@@ -157,6 +167,12 @@ void Settings::set(libcamera::ControlList &controlMap)
         controlMap.set(libcamera::controls::AnalogueGain, m_analogueGain);
     }
 
+    if (m_frameDurationAvailable && m_manualFrameDuration) {
+        controlMap.set(libcamera::controls::FrameDurationLimits, {m_frameDuration, m_frameDuration});
+    } else if (m_frameDurationAvailable && m_resetFrameDuration) {
+        controlMap.set(libcamera::controls::FrameDurationLimits, {int64_t{0}, int64_t{0}});
+    }
+
     if (!m_wbAutoUseDefault) {
         controlMap.set(libcamera::controls::AwbEnable, m_wbAuto);
         if (m_wbAuto && m_wbModeAvailable) {
@@ -191,6 +207,7 @@ void Settings::reset()
     unSetWb();
     unSetExposureTime();
     unSetGain();
+    unSetFrameRate();
     unSetContrast();
     unSetSaturation();
     m_noiseReductionMode = m_noiseReductionModeDefault;
@@ -520,6 +537,49 @@ float Settings::maxGain() const
     return m_analogueGainMax;
 }
 
+bool Settings::canSetFrameRate() const
+{
+    return m_frameDurationAvailable && m_frameDurationMin > 0 && m_frameDurationMax >= m_frameDurationMin;
+}
+
+bool Settings::trySetFrameRate(const float frameRate)
+{
+    if (!canSetFrameRate() || !std::isfinite(frameRate) || frameRate <= 0.0f) {
+        return false;
+    }
+
+    constexpr double microsecondsPerSecond = 1000000.0;
+    const int64_t requestedDuration = std::llround(microsecondsPerSecond / frameRate);
+    m_frameDuration = std::clamp(requestedDuration, m_frameDurationMin, m_frameDurationMax);
+
+    float actualFrameRate = microsecondsPerSecond / m_frameDuration;
+    const float roundedFrameRate = std::round(actualFrameRate);
+    if (std::abs(actualFrameRate - roundedFrameRate) < 0.01f) {
+        actualFrameRate = roundedFrameRate;
+    }
+
+    m_frameRate = actualFrameRate;
+    m_manualFrameDuration = true;
+    m_resetFrameDuration = false;
+    return true;
+}
+
+bool Settings::isSetFrameRate() const
+{
+    return m_manualFrameDuration;
+}
+
+void Settings::unSetFrameRate()
+{
+    m_manualFrameDuration = false;
+    m_resetFrameDuration = m_frameDurationAvailable;
+    m_frameRate = 0.0f;
+}
+
+float Settings::getFrameRate() const
+{
+    return m_frameRate;
+}
 
 // Color Settings
 bool Settings::canSetContrast() const

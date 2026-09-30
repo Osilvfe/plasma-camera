@@ -324,7 +324,7 @@ private:
     bool m_error = false;
     QString m_errorString;
 
-    float m_fps = 30.0f;
+    float m_fps = 0.0f;
 
     // The amount of degrees to rotate captured input by.
     int m_softwareRotationDegrees = 0;

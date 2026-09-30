@@ -513,9 +513,24 @@ void PlasmaCamera::setFlashMode(const int mode)
 
 void PlasmaCamera::setFps(const float fps)
 {
-    if (m_fps != fps) {
-        m_fps = fps;
-        Q_EMIT fpsChanged(m_fps);
+    if (fps <= 0.0f && !m_settings.isSetFrameRate() && m_fps == 0.0f) {
+        return;
+    }
+
+    float actualFps = 0.0f;
+    if (fps > 0.0f) {
+        if (!m_settings.trySetFrameRate(fps)) {
+            return;
+        }
+        actualFps = m_settings.getFrameRate();
+    } else {
+        m_settings.unSetFrameRate();
+    }
+
+    Q_EMIT settingsChanged(m_settings);
+    if (m_fps != actualFps) {
+        m_fps = actualFps;
+        Q_EMIT fpsChanged(actualFps);
     }
 }
 
