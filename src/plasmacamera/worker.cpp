@@ -191,11 +191,31 @@ void Worker::requestNextFrame()
         const int persistentMode = selectedMode == libcamera::controls::draft::FlashModeSingle ? libcamera::controls::draft::FlashModeOff : selectedMode;
         if (persistentMode != m_appliedFlashMode) {
             request->controls().set(libcamera::controls::draft::FlashMode, persistentMode);
+
+            // The PM8550 flash controls advertise their minimum as the
+            // default. That value is only a barely visible status LED level,
+            // so choose a useful current and clamp it to this camera's range.
+            if (persistentMode == libcamera::controls::draft::FlashModeTorch) {
+                const auto &controls = m_camera->controls();
+                const auto it = controls.find(&libcamera::controls::draft::TorchIntensity);
+                if (it != controls.end()) {
+                    const int32_t intensity = std::clamp<int32_t>(200000, it->second.min().get<int32_t>(), it->second.max().get<int32_t>());
+                    request->controls().set(libcamera::controls::draft::TorchIntensity, intensity);
+                    qInfo() << "Torch flash intensity:" << intensity;
+                }
+            }
             appliedFlashMode = persistentMode;
         }
     }
 
     if (queueSingleFlash) {
+        const auto &controls = m_camera->controls();
+        const auto it = controls.find(&libcamera::controls::draft::FlashIntensity);
+        if (it != controls.end()) {
+            const int32_t intensity = std::clamp<int32_t>(500000, it->second.min().get<int32_t>(), it->second.max().get<int32_t>());
+            request->controls().set(libcamera::controls::draft::FlashIntensity, intensity);
+            qInfo() << "Single flash intensity:" << intensity;
+        }
         request->controls().set(libcamera::controls::draft::FlashMode, libcamera::controls::draft::FlashModeSingle);
     }
 
